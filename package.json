@@ -1,0 +1,60 @@
+{
+  "name": "@houlagins/schema-dot-organizer",
+  "version": "1.0.0-alpha.1",
+  "homepage": "https://github.com/randyhoulahan/schema-dot-organizer/tree/master#readme",
+  "readme": "https://github.com/randyhoulahan/schema-dot-organizer/tree/master#readme",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "sdo": "bin/schema-dot-organizer.mjs"
+  },
+  "main": "dist/esm/index.mjs",
+  "umd": "dist/legacy/umd/index.umd.min.js",
+  "unpkg": "dist/browser/index.min.js",
+  "jsdelivr": "dist/browser/index.min.js",
+  "module": "dist/esm/index.min.js",
+  "jsnext:main": "dist/esm/index.min.js",
+  "src": "src/index.mjs",
+  "files": [
+    "dist/*",
+    "src/*",
+    "bin/*"
+  ],
+  "browser": {
+    "./umd": "dist/legacy/umd/index.umd.min.js",
+    "./browser": "dist/browser/index.min.js",
+    "./": "dist/browser/index.min.js"
+  },
+  "exports": {
+    ".": [
+      {
+        "import": "./dist/esm/index.mjs",
+        "require": "./dist/legacy/cjs/index.common.js",
+        "default": "./dist/esm/index.mjs"
+      },
+      "./dist/legacy/umd/index.umd.min.js"
+    ]
+  },
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "DEV=true dist-builder",
+    "test:e2e": "vue-cli-service test:e2e",
+    "lint": "vue-cli-service lint",
+    "clean:reinstall": "if test -f yarn.lock; then rm yarn.lock; fi && if test -d node_modules; then rm -rf node_modules; fi && yarn --exact --force",
+    "release": "yarn publish --access=public --tag alpha"
+  },
+  "dependencies": {
+    "@houlagins/load-http": "1.0.3"
+  },
+  "devDependencies": {
+    "@houlagins/dist-builder": "^1.0.11",
+    "babel-eslint": "^10.1.0",
+    "beautify": "^0.0.8",
+    "change-case": "^4.1.1",
+    "consola": "^2.15.0",
+    "core-js": "^3.6.5",
+    "eslint": "^7.12.1",
+    "vue": "2.6.11",
+    "vue-template-compiler": "2.6.11"
+  }
+}
