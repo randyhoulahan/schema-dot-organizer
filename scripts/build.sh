@@ -1,0 +1,1 @@
+cp -r src/builder/templates/vocab dist/vocab

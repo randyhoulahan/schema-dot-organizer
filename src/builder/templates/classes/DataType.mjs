@@ -7,7 +7,6 @@ export default {
   $source             : 'http://schema.org/DataType',
   title               : 'DataType',
   description         : 'The basic data types such as Integers, Strings, etc.',
-  type                : 'object',
   additionalProperties: false
 }
 

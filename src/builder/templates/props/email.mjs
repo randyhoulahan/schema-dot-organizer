@@ -3,13 +3,13 @@ import { config } from '../../util/config.mjs'
 const { classesId, propsId } = config
 
 export default {
-  $id        : `${propsId}/url.mjs`,
-  $source    : 'https://schema.org/url',
-  title      : 'url',
-  description: 'URL of the item.',
+  $id        : `${propsId}/email.mjs`,
+  $source    : 'https://schema.org/email',
+  title      : 'Email address',
+  description: 'email address, min length 3 char and max 254',
   oneOf      : [
     { $ref: `${classesId}/Ref.mjs` },
-    { $ref: `${classesId}/URL.mjs` },
+    { $ref: `${classesId}/Email.mjs` },
     {
       type           : 'array',
       minItems       : 1,
@@ -17,7 +17,7 @@ export default {
       additionalItems: false,
       uniqueItems    : true,
       items          : {
-        anyOf: [ { $ref: `${classesId}/Ref.mjs` }, { $ref: `${classesId}/URL.mjs` } ]
+        anyOf: [ { $ref: `${classesId}/Ref.mjs` }, { $ref: `${classesId}/Email.mjs` } ]
       }
     }
   ]

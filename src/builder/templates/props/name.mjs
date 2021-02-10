@@ -1,11 +1,11 @@
 import { config } from '../../util/config.mjs'
 
-const { typesId, propsId } = config
+const { classesId, propsId } = config
 
 export default {
   $id        : `${propsId}/name.mjs`,
-  $source    : 'http://schema.org/name',
+  $source    : 'https://schema.org/name',
   title      : 'name',
   description: 'The name of the item.',
-  oneOf      : [ { $ref: `${typesId}/LString60.mjs` } ]
+  oneOf      : [ { $ref: `${classesId}/Ref.mjs` }, { $ref: `${classesId}/LString60.mjs` } ]
 }

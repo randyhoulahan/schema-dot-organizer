@@ -1,311 +1,262 @@
 import { get$http } from '@houlagins/load-http'
+import consolaGlobalInstance from 'consola';
+import { normalize, buildClasses, createDataStore, buildEnumClasses, buildEnumMembers } from './graph-tools.mjs'
 
-const classes      = new Map()
-const props        = new Map()
-const enums        = new Map()
-const enumsMembers = new Map()
-const graph        = new Map()
+const dataTypes    = [ 'Text', 'Number', 'Integer', 'Date', 'True', 'False', 'DateTime', 'Date', 'Boolean', 'Time', 'CssSelectorType', 'PronounceableText', 'XPathType' ]
 
-const dataTypes    = [ 'URL', 'Text', 'Number', 'Integer', 'Date', 'True', 'False', 'DateTime', 'Date', 'Boolean', 'Time', 'CssSelectorType', 'PronounceableText', 'XPathType' ]
+export class SDO {
 
+  constructor(){ this.store = createDataStore(); }
 
-const privateProps = {
-  classes, props, graph, enums, enumsMembers,
-  get raw(){ return JSON.parse(JSON.stringify(Array.from(this._raw))) },
-  set raw(data){ this._raw = data }
-}
-
-export const classesSize      = () => privateProps.classes? privateProps.classes.size : 0
-export const propsSize        = () => privateProps.props? privateProps.props.size : 0
-export const propertiesSize   = () => privateProps.props? privateProps.props.size : 0
-export const enumsSize        = () => privateProps.enums? privateProps.enums.size : 0
-export const enumsMembersSize = () => privateProps.enumMembers? privateProps.enumMembers.size : 0
-
-export const debug            = () => console.log(privateProps)
-
-export async function loadGraph (data){
-  console.time('start load')
-
-  if(data) return parseData(data)
-
-  const $http = await get$http()
-
-  return $http.get('https://schema.org/version/latest/schemaorg-all-https.jsonld')
-    .then((res) => res.json())
-    .then((data) => parseData(data))
-}
-
-function parseData(data){
-  privateProps.raw = new Set(data['@graph'])
-  buildClasses()
-  console.timeEnd('start load')
-}
-export const getClass = (name) => {
-  const hasClass = privateProps.classes.get(name)
-
-  if(hasClass) return hasClass
-
-  return getRawItem('@id', `http://schema.org/${name}`)
-}
-
-export const getRawClass = (name) => {
-  const hasClass = privateProps.raw.map(e => e['rdfs:label']===name? e: false).filter(a => a)
-
-  if(hasClass) return hasClass
-
-  return privateProps.raw
-}
-
-export const getEnumClass = (name) => {
-  const hasClass = privateProps.enums.get(name)
-
-  if(hasClass) return hasClass
-
-  return getRawItem('@id', `http://schema.org/${name}`)
-}
-export const getEnum = (name) => {
-  const hasClass = privateProps.enumMembers.get(name)
-
-  if(hasClass) return hasClass
-
-  return getRawItem('@id', `http://schema.org/${name}`)
-}
-
-export const getProp = (name) => {
-  const hasProp = privateProps.props.get(name)
-
-  if(hasProp) return hasProp
-  return getRawItem('@id', `http://schema.org/${name}`)
-}
-
-export const isClass = (className) => dataTypes.includes(className)? false : !!getClass(className)
-
-export const metaIsA = (name) => {
-  if(!privateProps.loaded) return undefined
-  if(dataTypes.includes(name)) return 'Data'
-  if(getEnumClass(name)) return 'Enum'
-  if(getClass(name)) return 'Class'
+  async loadGraph (data){
+    try{
+      const url = 'https://schema.org/version/latest/schemaorg-all-https.jsonld'
   
-  if(getProp(name))  'Property'
+      await this.loadCustomGraph()
 
-  return undefined
-}
-
-
-function buildClasses (){ // eslint-disable-line
-  const classes = privateProps.raw.filter((item) => item['@type']==='rdfs:Class')
-  const props   = privateProps.raw.filter((item) => item['@type']==='rdf:Property')
-
+      if(data) return this.parseData(data, true)
   
-  classes.forEach(aClass =>  privateProps.classes.set(aClass['rdfs:label'], aClass))
-  props.forEach(aProp =>  privateProps.props.set(aProp['rdfs:label'], aProp))
+      const $http = await get$http()
   
-
-  privateProps.props.forEach(normalizeKeys)
-  privateProps.props.forEach(cleanDescription)
-  privateProps.classes.forEach(normalizeKeys)
-  privateProps.classes.forEach(cleanDescription)
-  privateProps.classes.forEach(buildChildren)
-  privateProps.classes.forEach(buildParent)
-  privateProps.classes.forEach(buildParents)
-
-  privateProps.classes.forEach(buildSelfProps)
-  privateProps.classes.forEach(buildProps)
-
-  privateProps.enumMembers = enumMembers()
-  privateProps.enumMembers.forEach(cleanDescription)
-  privateProps.enums = enumClasses()
-  privateProps.enums.forEach(cleanDescription)
-
-  privateProps.loaded = true
-
-
-  //const notEnumMembers = [ 'rdfs:Class', 'rdf:Property' ]
-}
-
-
-function cleanDescription(aClass){
-  const clean = aClass.description.replace(/'/g, '\\\'')
-  
-  aClass.description = clean.replace(/\n/g, '')
-}
-
-function enumClasses(){
-  const enums = new Map()
-  
-
-  privateProps.classes.forEach((aClass, name) => {
-    if(aClass['@id'].endsWith('//schema.org/Enumeration')) return enums.set(name, aClass)
-    if(!aClass._parents) return
-    if(!Array.from(aClass._parents.keys()).includes('Enumeration'))return
-    
-    const members = new Map()
-
-    for (const e of privateProps.enumMembers.values())
-      if(e['@type'] === aClass['@id']) members.set(e['rdfs:label'], e)
-    
-    aClass.members = members
-    
-    enums.set(name, aClass)
-  })
-
-  return enums
-}
-
-function enumMembers(){
-  const notEnumMembers = [ 'rdfs:Class', 'rdf:Property' ]
-  const enums = new Map()
-  const enumMembersArray = privateProps.raw.filter((aClass) => !notEnumMembers.includes(aClass['@type']))
-
-  enumMembersArray.forEach((e) => enums.set(e['rdfs:label'], e))
-  
-  for (const [enName,en] of enums) {
-    normalizeKeys(en)
+      console.time(`start load: ${url}`)
+      return $http.get(url)
+                    .then((res) => res.json())
+                    .then((d) => this.parseData(d))
+                    .then((d) => { console.timeEnd(`start load: ${url}`); return d})
+    }
+    catch(e){
+      console.error(e)
+      process.exit(-1)
+    }
   }
-  return enums
-}
 
-function getPropsFromParents(aClass){
-  let propMaps = aClass._selfProps? new Map([ ...aClass._selfProps ]) : new Map()
-
-  if(aClass._parents)
-    for (const [ name, aParentClass ] of aClass._parents) // eslint-disable-line
-      if(aParentClass._selfProps) propMaps = new Map([ ...propMaps, ...aParentClass._selfProps ])
-
-  return propMaps.size? propMaps : undefined
-}
-
-function buildProps(aClass){
-  const props = getPropsFromParents(aClass)
-
-  if(props) aClass._props = props
-}
-
-function buildSelfProps(aClass){
-  const propNameInClass   = '_selfProps'
-  const aClassAndPropName = { aClass, propNameInClass }
-
-  privateProps.props.forEach((value) => {
-    const domains = value['https://schema.org/domainIncludes']
-
-    if(!domains) return
-
-    const { name        } = value
-    const   propObject    = { name, value }
-
-    if(domains['@id'] === aClass['@id'])
-      return mapSet(aClassAndPropName, propObject)
-
-    if(Array.isArray(domains))
-      domains.forEach((domain) => {
-        if(domain['@id'] === aClass['@id'])
-          mapSet(aClassAndPropName, propObject)
-      })
-  })
-}
-
-function mapSet({ aClass, propNameInClass }, { name, value }){
-  if(!aClass[propNameInClass]) aClass[propNameInClass] = new Map()
-
-  aClass[propNameInClass].set(name, value)
-}
-
-function buildChildren(value){
-  const children = new Map()
-
-
-  privateProps.classes.forEach((child) => {
-    if(!child['rdfs:subClassOf']) return
-    if(child['rdfs:subClassOf']['@id'] === value['@id'])
-      children.set(child.name, child)
-
-    if(Array.isArray(child['rdfs:subClassOf']))
-      child['rdfs:subClassOf'].forEach((aClass) => {
-        if(aClass['@id'] === value['@id'])
-          children.set(child.name, child)
-      })
-  })
-
-  if(children.size)
-    value._children = children
-}
-
-function buildParent(value, name){
-  const { _children } = value
-
-  if(!_children) return
-
-  _children.forEach((child) => {
-    if(!child._parent) child._parent = new Map()
-    child._parent.set(name, value)
-  })
-}
-
-function buildParents(value){
-  const { _parent } = value
-
-  if(!_parent) return
-
-  const parentNames = getParentsNames(value)
-
-  if(Array.isArray(parentNames) && parentNames.length) value._parents= new Map()
-  
-  for (const name of parentNames)
-    value._parents.set(name, privateProps.classes.get(name))
-}
-
-function getParentsNames(value){
-  const { _parent } = value
-
-  if(!_parent) return []
-
-  const parentName = Array.from(_parent.keys())
-
-  return parentName.concat(getParentsNames(_parent.get(parentName[0])))
-}
-
-function normalizeKeys(value){
-  value['@id'] = value['@id'].replace(/http:/gi, 'https:')
-  for (const propName in value){
-    if(propName.startsWith('http:')) value[propName.replace(/http:/gi, 'https:')] = normalizeAtIdValues(value[propName])//.replace(/http/gi, 'https')
-    if(propName.includes('rdfs:subClassOf')) value[propName] = normalizeAtIdValues(value[propName])
-
-    value.name   = value['@id'].replace(/(http|https):\/\/schema.org\//gi, '')
-    value.description = value['rdfs:comment']
-    value.identifier = createIdentifier(value)
+  async loadCustomGraph (){
+    try{
+      const data = (await import('./builder/templates/vocab/schema-dot-organizer-vocab.mjs')).default
+    
+      this.parseData(data)
+    }
+    catch(e){
+      console.error(e)
+      process.exit(-1)
+    }
   }
-}
 
-function normalizeAtIdValues(value){
-  if(typeof value === String) return value.replace(/http:/gi, 'https:')
+  async pushOnGraph (data) {
+    this.parseData(data)
+  }
 
-  const clone = JSON.parse(JSON.stringify(value))
+  parseData(data, mapPropClasses = true){
+    try{
+      this.store.raw = this.store.raw? new Set([ ...this.store.raw, ...data['@graph'] ]) : new Set([ ...data['@graph'] ])
 
-  if(Array.isArray(clone))
-    clone.forEach((atIdValue, index) => {
-      if(typeof atIdValue === String) clone[index] = clone[index].replace(/http:/gi, 'https:')
-      if(typeof atIdValue === 'object') atIdValue['@id'] = atIdValue['@id']? atIdValue['@id'].replace(/http:/gi, 'https:') : undefined
+      this.buildGraph(mapPropClasses)
+    }
+    catch(e){
+      console.error(e)
+      process.exit(-1)
+    }
+  }
+
+  buildGraph (mapPropClasses = false){ // eslint-disable-line
+
+    this.rawClasses.forEach(aClass =>  this.classes.set(aClass['rdfs:label']['@value'] || aClass['rdfs:label'], aClass))
+    this.rawProps.forEach(aProp =>  this.store.props.set(aProp['rdfs:label']['@value'] || aProp['rdfs:label'], aProp))
+  
+    this.store.props   = normalize(this.props)
+    this.store.classes = normalize(this.classes)
+
+    this.store.classes      = buildClasses(this.classes, this.props, mapPropClasses)
+    this.store.enumMembers  = buildEnumMembers(this.raw)
+    this.store.enumClasses  = buildEnumClasses(this.classes, this.enumMembers)
+
+    this.store.classes.forEach((aClass)=>{
+      aClass._tree = this.getTree(aClass.name)
     })
-  if(clone['@id']) clone['@id'] = clone['@id'].replace(/http:/gi, 'https:')
 
-  return clone
+    this.store.classes.forEach((aClass)=>{
+      const equivalentClass = aClass['http://www.w3.org/2002/07/owl#equivalentClass']
+
+      if(!equivalentClass) return 
+      
+      aClass.equivalentClass = Array.isArray(equivalentClass)? new Set(equivalentClass) : new Set([equivalentClass])
+    })
+
+    this.getClassNames()
+    this.getPropNames()
+
+    this.store.loaded = true
+  }
+
+  getClassNames (){
+    for (const [ name ] of this.store.classes)
+      this.store.classNames.add(name)
+  
+    return this.store.classNames
+  }
+
+  getPropNames(){
+    for (const [ name ] of this.store.props)
+      this.store.propNames.add(name)
+
+    return this.store.propNames
+  }
+
+  getClass(name) { return this.store.classes.get(name) }
+
+  getPropsWithClassesFromClass(name){
+    return (this.getClass(name)|| {})._propsWithClasses
+  }
+
+  makeTree(aClassName, keyPrefix=''){
+    if(isTreeRepeating(keyPrefix)) return []
+
+  
+    const map = this.getPropsWithClassesFromClass(aClassName)
+
+    if(!map) return []
+
+    const classFlatMap = []
+  
+    for (const [ key, classNames ] of map){
+      classFlatMap.push(`${keyPrefix}${key}`)
+  
+      for (const className of classNames)
+        classFlatMap.push(this.makeTree(className, `${keyPrefix}${key}.`))
+    }
+
+    return classFlatMap.flat()
+  }
+
+  getTree(aClassName, knownArrays =[]){
+    const treeSet = new Set()
+    for (const propPath of this.makeTree(aClassName)){
+      let isArray = false
+
+      for (const knownArray of knownArrays) 
+        if(propPath.startsWith(`${knownArray}.`)) isArray = true
+          
+      if(!isArray) treeSet.add(propPath)
+    }
+    return treeSet
+  }
+
+  getClassByAtId (atId) {
+    for (const aClass of this.store.classes || {})
+      if(aClass['@id'] === atId) return aClass
+
+    return null
+  }
+
+  getEnumClass (name){
+    return this.store.enumClasses.get(name)
+  }
+
+  getEnumMember (name){
+    return this.store.enumMembers.get(name)
+  }
+
+  getProp (name){
+    return this.store.props.get(name)
+  }
+
+  metaIsA (name) {
+    if(!this.store.loaded) return undefined
+    if(dataTypes.includes(name)) return 'Data'
+    if(this.getEnumMember(name)) return 'EnumMember'
+    if(this.getEnumClass(name)) return 'Enum'
+    if(this.getClass(name) || name==='Email') return 'Class'
+    
+    if(this.getProp(name))  return 'Property'
+  
+    return undefined
+  }
+
+  isClass(name){
+    return ['Class', 'Enum'].includes(this.metaIsA(name))
+  }
+
+  getChildrenNames(className){
+    const names  = []
+    const { '_children': children } = this.getClass(className) || {}
+  
+    if(!children) return names
+
+    for (const [name] of children.entries()) {
+      names.push(name)
+      names.push(...this.getChildrenNames(name))
+    }
+    return names
+  }
+
+  getRawClass(className){
+    const names  = this.rawClasses.filter((item) => item['rdfs:label']===className) || []
+    return names[0]
+  }
+
+  isChild(className, childName){
+    const aClass = this.getClass(className)
+
+    if(!aClass) throw new Error(`SDO.isChild: ${className} not found`)
+
+    if(!aClass._allChildren || !aClass._allChildren.size) return false
+
+    return aClass._allChildren.has(childName)
+  }
+
+  getRawObj(name){
+    const names  = this.raw.filter((item) => item['rdfs:label'] === name) || []
+    return names[0]
+  }
+
+  getRawEnumMember(className){
+    const names  = this.rawEnumMembers.filter((item) => item['rdfs:label']===className) || []
+    return names[0]
+  }
+
+  get propNames(){
+    if(this.store.propNames.size) return this.store.propNames
+    return this.getPropNames()
+  }
+
+  get classNames(){
+    if(this.store.classNames.size) return this.store.classNames
+    return this.getClassNames()
+  }
+
+  get classes(){ return this.store.classes }
+
+  get props(){ return this.store.props }
+
+  get enumMembers(){ return this.store.enumMembers }
+
+  get enumClasses(){ return this.store.enumClasses }
+
+  get rawClasses(){ return this.store.raw.filter((item) => item['@type']==='rdfs:Class') }
+
+  get rawProps(){ return this.store.raw.filter((item) => item['@type']==='rdf:Property') }
+
+  get rawEnumMembers(){return this.store.raw.filter((aClass) => ![ 'rdfs:Class', 'rdf:Property' ].includes(aClass['@type']))}
+
+  get raw(){ return this.store.raw }
+
+  debug() { return console.log(this.store) }
 }
 
-function createIdentifier(aClass){
-  const identifierSet = new Set()
-  const name = 'schema.org'
-  const value = aClass['@id']
-  const identifier = aClass['@id']
 
-  identifierSet.add({ name, value, identifier })
+function isTreeRepeating(key){
+  const splitKey = key.split('.') || []
+  const length = splitKey.length 
 
-  return identifierSet
+  if(length >= 3) return true
+
+  const last       = splitKey[length-2]
+  const secondLast = splitKey[length-3]
+  const thirdLast = splitKey[length-3]
+
+  if(last && secondLast && last.length === secondLast.length && last === secondLast) return true
+  if(last && thirdLast && last.length === thirdLast.length && last === thirdLast) return true
+
+  return false
+
 }
-
-function getRawItem(propName, value){
-  for (const item of privateProps.raw)
-    if(item[propName] === value)
-      return item
-}
-
-

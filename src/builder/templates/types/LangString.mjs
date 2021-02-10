@@ -8,5 +8,5 @@ export default  {
   description: 'Language string in an LString object with very large size to accommodate pages of text',
   allOf      : [ { $ref: `${typesId}/Text.mjs` } ],
   minLength  : 1,
-  maxLength  : 5000
+  maxLength  : 15000
 }
